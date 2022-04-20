@@ -132,13 +132,13 @@ int main(int argc, char *argv[]) {
     printf("input buffer %d\n", N);
     printf("output buffer %d\n", M);
 
-	input_buf->buffer = sizeof(char);
+	input_buf->buffer = (uint8_t *)malloc(N * sizeof(uint8_t));
 	input_buf->max = N;
 	input_buf->full = 0;
 	input_buf->head = 0;
 	input_buf->tail = 0;
 
-    output_buf->buffer = sizeof(char);
+    output_buf->buffer = (uint8_t *)malloc(M * sizeof(uint8_t));
     output_buf->max = M;
     output_buf->full = 0;
     output_buf->head = 0;
