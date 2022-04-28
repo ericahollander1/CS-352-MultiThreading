@@ -19,6 +19,9 @@
 sem_t *sem_char_render;
 sem_t *sem_count_in;
 sem_t *sem_count_out;
+sem_t *sem_encrypt1;
+sem_t *sem_encrypt2;
+sem_t *sem_writer;
 int render_count, writer_count;
 typedef struct circular_buf_t {
     char * buffer;
@@ -105,15 +108,14 @@ void *renderThread(void *vargp) {
         if((data = read_input()) == EOF){
             printf("EOF");
             done[0] = 1;
-            return 0;
+            //return 0;
             sem_post(sem_count_in);
+            return 0;
         }
         if(done[3] == 1){
             return 0;
         }
         else {
-
-
             //printf("ADD VALUE %c\n", data);
             //buf.head = (buf.head + 1) % buf.max;
             if(input_buf.tail == input_buf.max-1){
@@ -129,8 +131,21 @@ void *renderThread(void *vargp) {
             printf("BUFFER FULL %d, tail: %d, head: %d\n", input_buf.full, input_buf.tail, input_buf.head);
             input_buf.buffer[input_buf.tail] = data;
 
+            printf("input_buf[");
+            for(int i = 0; i < input_buf.max; i++){
+                printf("%c, ", input_buf.buffer[i]);
+
+            }
+            printf("]\noutput_buf[");
+            for(int i = 0; i < output_buf.max; i++){
+                printf("%c, ", output_buf.buffer[i]);
+
+            }
+            printf("]\n");
+
             if (input_buf.full) {
                 printf("make sem wait \n");
+
                 sem_wait(sem_char_render);
                 // buf.tail = (buf.tail + 1) % buf.max;
             }
@@ -153,15 +168,15 @@ void *inputCounterThread(void *vargp) {
         if(done[0] == 0){
             sem_wait(sem_count_in);
         }
-        else if(render_count == 12){
+        if(render_count == 12){
             return 0;
         }
         printf("input\n");
 
-        printf("sem_posted\n");
         printf("render count: %d, counter: %d\n", render_count, get_input_total_count());
         if (render_count > get_input_total_count()) { //maybe we dont need this if cause we use sems
             count_input(input_buf.buffer[getIndexOfCircBuf(input_buf, render_count - get_input_total_count())]);
+            sem_post(sem_encrypt);
         }
 
     }
@@ -170,7 +185,10 @@ void *inputCounterThread(void *vargp) {
 void *encryptThread(void *vargp){
     while(1){
         printf("encrypt 1: %d, 2: %d\n", render_count-get_input_total_count(), !output_buf.full);
-        if(render_count-get_input_total_count() < input_buf.max && !output_buf.full){ // might need to be equal if issues debug there
+        sem_wait(sem_encrypt1);
+        sem_wait(sem_encrypt2);
+        //sem_wait(sem_count_out);
+        //if(render_count-get_input_total_count() < input_buf.max && !output_buf.full){ // might need to be equal if issues debug there
             printf("encrypt\n");
             //encrypt();//count_input(input_buf.buf[getIndexOfCircBuf(input_buf, get_input_total_count()-render_count)]);
             printf("add THIS Value %c at %d\n", input_buf.buffer[input_buf.head], input_buf.head);
@@ -180,7 +198,6 @@ void *encryptThread(void *vargp){
                 output_buf.full = (output_buf.head == 0);
             }
             else{
-
                 output_buf.full = (output_buf.head == output_buf.tail+1);
             }
 
@@ -190,7 +207,7 @@ void *encryptThread(void *vargp){
             char encryptchar = encrypt(input_buf.buffer[input_buf.head]);
             output_buf.buffer[output_buf.tail] = encryptchar;
 
-            if (input_buf.full) {
+            if (output_buf.full) {
                 printf("make sem wait out \n");
                 sem_wait(sem_count_out);
                 // buf.tail = (buf.tail + 1) % buf.max;
@@ -198,9 +215,17 @@ void *encryptThread(void *vargp){
             else{
                 output_buf.tail = (output_buf.tail + 1) % output_buf.max;
             }
-            moveHead(input_buf);
-            sem_post(sem_char_render);
+            //moveHead(input_buf);
+        printf("head: %d, tail %d\n", input_buf.head, input_buf.tail);
+        if(input_buf.head != input_buf.tail)
+        {
+            printf("head: %d, tail %d\n", input_buf.head, input_buf.tail);
+            input_buf.head = (input_buf.head + 1) % input_buf.max;
+            input_buf.full = (input_buf.head == input_buf.tail+1);
         }
+            sem_post(sem_char_render);
+            sem_post(sem_count_out);
+        //}
         if(output_buf.max == output_buf.tail-1 || render_count == 12){//TAKE THIS OUT!!!
             printf("end");
             return 0;
@@ -210,20 +235,39 @@ void *encryptThread(void *vargp){
 }
 
 void *outputCounterThread(void *vargp){
-    printf("output\n");
-    if(writer_count < get_output_total_count()){ //maybe we dont need this if cause we use sems
-        count_output(input_buf.buffer[getIndexOfCircBuf(output_buf, get_output_total_count()-writer_count)]);
+    while(1){
+        sem_wait(sem_count_out);
+        printf("output\n");
+        if(writer_count < get_output_total_count()){ //maybe we dont need this if cause we use sems
+            count_output(input_buf.buffer[getIndexOfCircBuf(output_buf, get_output_total_count()-writer_count)]);
+            sem_post(sem_writer);
+            sem_post(sem_encrypt2);
+        }
+        return 0;
     }
+
 }
 
 void *writerThread(void *vargp){
-    printf("writer\n");
-    writer_count++;
-    if(output_buf.head != output_buf.tail){
-        printf("writer if\n");
-        write_output(output_buf.head);
-        moveHead(output_buf);
-        sem_post(sem_count_out);
+    while(1) {
+        printf("writer\n");
+        sem_wait(sem_writer);
+        writer_count++;
+        if (output_buf.head != output_buf.tail) {
+            printf("writer if\n");
+            write_output(output_buf.head);
+            //moveHead(output_buf);
+            printf("head: %d, tail %d\n", input_buf.head, input_buf.tail);
+            if (input_buf.head != input_buf.tail) {
+                printf("head: %d, tail %d\n", input_buf.head, input_buf.tail);
+                input_buf.head = (input_buf.head + 1) % input_buf.max;
+                input_buf.full = (input_buf.head == input_buf.tail + 1);
+            }
+            //sem_post(sem_count_out);
+        }
+        if(done[3] == 1 && writer_count == render_count){
+            return 0;
+        }
     }
 }
 
@@ -278,6 +322,12 @@ int main(int argc, char *argv[]) {
     sem_unlink("/sem_test_count_in");
     sem_count_out = sem_open("/sem_test_count_out", O_CREAT, 0644, 0);
     sem_unlink("/sem_test_count_out");
+    sem_encrypt1 = sem_open("/sem_encrypt1", O_CREAT, 0644, 0);
+    sem_unlink("/sem_encrypt1");
+    sem_encrypt2 = sem_open("/sem_encrypt2", O_CREAT, 0644, 0);
+    sem_unlink("/sem_encrypt2");
+    sem_writer = sem_open("/sem_writer", O_CREAT, 0644, 0);
+    sem_unlink("/sem_writer");
     printf("sems created\n");
 
     pthread_create(&reader, NULL, renderThread, NULL);
