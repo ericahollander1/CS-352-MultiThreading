@@ -5,6 +5,11 @@
 #include <stdbool.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <ctype.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 /*
     Authors: Erica Hollander & Lakin Jenkins
