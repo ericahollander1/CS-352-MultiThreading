@@ -261,7 +261,7 @@ void *outputCounterThread(void *vargp){
 
         printf("output %d\n", get_output_total_count());
         //if(writer_count < get_output_total_count()){ //maybe we dont need this if cause we use sems
-            count_output(input_buf.buffer[getIndexOfCircBuf(output_buf, get_output_total_count()-writer_count)]);
+            count_output(output_buf.buffer[getIndexOfCircBuf(output_buf, get_output_total_count()-writer_count)]);
             sem_post(sem_writer);
             //sem_post(sem_encrypt2);
        // }
@@ -279,16 +279,18 @@ void *writerThread(void *vargp){
         }
 
         //if (output_buf.head != output_buf.tail) {
-            printf("writer if\n");
+
             write_output(output_buf.buffer[output_buf.head]);
             //moveHead(output_buf);
-            printf("head: %d, tail %d\n", output_buf.head, output_buf.tail);
+            printf("whead: %d, tail %d\n", output_buf.head, output_buf.tail);
             if (output_buf.head != output_buf.tail) {
-                printf("head: %d, tail %d\n", output_buf.head, output_buf.tail);
+                printf("whead: %d, tail %d\n", output_buf.head, output_buf.tail);
                 output_buf.head = (output_buf.head + 1) % output_buf.max;
                 output_buf.full = (output_buf.head == output_buf.tail + 1);
             }
+
             writer_count++;
+            printf("writer count %d \n", writer_count);
             sem_post(sem_encrypt2);
         //}
         if(done[3] == 1 && writer_count == render_count){
