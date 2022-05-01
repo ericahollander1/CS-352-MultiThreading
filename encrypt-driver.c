@@ -36,10 +36,13 @@ circular_buf_t output_buf;
 int done[] = {0,0,0,0};
 
 void reset_requested() {
+    // stop the reader thread from reading any more input
+    // make sure it is safe to reset
     log_counts();
 }
 
 void reset_finished() {
+    // resume the reader thread
 }
 
 size_t getCircBufSize(circular_buf_t buf){
@@ -232,7 +235,8 @@ void *encryptThread(void *vargp){
 
         if(done[1] == 1){//output_buf.max == output_buf.tail-1 || render_count == 12){//TAKE THIS OUT!!!
             printf("encrypt post DONE encrypt count = %d, input_total_count == %d, output_count = %d\n", encrypt_count, get_input_total_count(), get_output_total_count());
-            sem_post(sem_count_out);
+            //sem_post(sem_count_out);
+            //done[2] = 1;
             if(encrypt_count == get_input_total_count()){
                 done[2] = 1;
                 printf("END OF ENCRYPT\n");
@@ -248,7 +252,7 @@ void *outputCounterThread(void *vargp){
     while(1){
         if(done[2] == 1){
             sem_post(sem_writer);
-            if(get_input_total_count() == render_count){
+            if(get_output_total_count() == render_count){
                 printf("OUTPUT DONE\n");
                 done[3] = 1;
                 return 0;
@@ -261,8 +265,8 @@ void *outputCounterThread(void *vargp){
 
         printf("output %d\n", get_output_total_count());
         //if(writer_count < get_output_total_count()){ //maybe we dont need this if cause we use sems
-            count_output(output_buf.buffer[getIndexOfCircBuf(output_buf, get_output_total_count()-writer_count)]);
-            sem_post(sem_writer);
+        count_output(output_buf.buffer[getIndexOfCircBuf(output_buf, encrypt_count-get_output_total_count())]);
+        sem_post(sem_writer);
             //sem_post(sem_encrypt2);
        // }
 
