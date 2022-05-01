@@ -22,6 +22,7 @@ sem_t *sem_count_out;
 sem_t *sem_encrypt1;
 sem_t *sem_encrypt2;
 sem_t *sem_writer;
+sem_t *sem_key;
 int render_count, writer_count, encrypt_count;
 typedef struct circular_buf_t {
     char * buffer;
@@ -34,15 +35,18 @@ typedef struct circular_buf_t {
 circular_buf_t input_buf;
 circular_buf_t output_buf;
 int done[] = {0,0,0,0};
-
+int keyChanged = 0;
 void reset_requested() {
     // stop the reader thread from reading any more input
     // make sure it is safe to reset
+    keyChanged = 1;
+
     log_counts();
 }
 
 void reset_finished() {
     // resume the reader thread
+    sem_post(sem_key);
 }
 
 size_t getCircBufSize(circular_buf_t buf){
@@ -108,7 +112,13 @@ void *renderThread(void *vargp) {
     printf("render %d\n", render_count);
     //addValue(input_buf, read_input(), sem_char_render);
     char data;
-        if((data = read_input()) == EOF){
+    if(keyChanged == 1){
+        printf("keyChanged\n");
+        sem_wait(sem_key);
+        done[0] = 1;
+        sem_post(sem_count_in);
+    }
+        if((data = read_input()) == EOF ){
             printf("EOF");
             done[0] = 1;
             //return 0;
@@ -173,6 +183,9 @@ void *inputCounterThread(void *vargp) {
         else if(render_count == get_input_total_count()){
            done[1] = 1;
            printf("INPUT DONE");
+           if(keyChanged == 1){
+               sem_wait(sem_count_in);//left off lakin
+           }
             return 0;
         }
         printf("input\n");
@@ -361,6 +374,8 @@ int main(int argc, char *argv[]) {
     sem_unlink("/sem_encrypt2");
     sem_writer = sem_open("/sem_writer", O_CREAT, 0644, 0);
     sem_unlink("/sem_writer");
+    sem_key = sem_open("/sem_key", O_CREAT, 0644, 0);
+    sem_unlink("/sem_key");
     printf("sems created\n");
 
     pthread_create(&reader, NULL, renderThread, NULL);
