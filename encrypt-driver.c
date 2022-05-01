@@ -206,9 +206,9 @@ void *encryptThread(void *vargp){
             char encryptchar = encrypt(input_buf.buffer[input_buf.head]);
             output_buf.buffer[output_buf.tail] = encryptchar;
 
-            if (output_buf.full) {
+            if (output_buf.full == 1) {
                 printf("make sem wait out \n");
-                sem_wait(sem_count_out);
+                sem_wait(sem_encrypt2);
             }
             output_buf.tail = (output_buf.tail + 1) % output_buf.max;
             encrypt_count++;
@@ -289,7 +289,7 @@ void *writerThread(void *vargp){
                 output_buf.full = (output_buf.head == output_buf.tail + 1);
             }
             writer_count++;
-            //sem_post(sem_count_out);
+            sem_post(sem_encrypt2);
         //}
         if(done[3] == 1 && writer_count == render_count){
             printf("DONE WITH IT ALL\n");
