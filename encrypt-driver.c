@@ -308,8 +308,12 @@ void *writerThread(void *vargp){
 
 
 int main(int argc, char *argv[]) {
-	init("input.txt", "out.txt", "log.txt");//change to input
-	char c;
+    if(argc != 4) {
+        printf("Please re-run program with correct input: [INPUT_FILENAME] [OUTPUT_FILENAME] [LOG_FILENAME]");
+        return 0;
+    }
+	init(argv[1], argv[2], argv[3]);
+    char c;
 	int N = 0, M = 0;
 	while(N<2) {
         printf("What input buffer size to use?\n");
