@@ -182,6 +182,7 @@ void *renderThread(void *vargp) {
             sem_wait(sem_key);
         }
     }
+
     printf("rendercheck\n");
         if((data = read_input()) == EOF ){
             printf("EOF");
