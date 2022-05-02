@@ -258,6 +258,7 @@ void *inputCounterThread(void *vargp) {
             done[1] = 1;
            printf("INPUT DONE");
             if(keyChanged == 1){
+                sem_post(sem_encrypt1);
                 sem_wait(sem_count_in);
                 printf("\n\nWE RESET!!!!\n\n");
             }
@@ -341,6 +342,7 @@ void *encryptThread(void *vargp){
                 printf("END OF ENCRYPT\n");
                 if(keyChanged == 1){
                     printf("\nWE RESET ENCRYPT HERE!!\n");
+
                     sem_wait(sem_encrypt1);
                     done[2] = 0;
                 }
