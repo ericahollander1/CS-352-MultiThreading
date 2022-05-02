@@ -12,7 +12,7 @@
 #include <fcntl.h>
 
 /*
-    Authors: Erica Hollander & Lakin Jenkins
+    Authors: Lakin Jenkins & Erica Hollander
 */
 
 
@@ -151,7 +151,8 @@ int getIndexOfCircBuf(circular_buf_t buf, int behind){
 
 
 /*
- *
+ * Render thread is the thread for reading in the data from the input file
+ * This takes in the character and adds it to the input buffer
  */
 void *renderThread(void *vargp) {
     while (1) {
@@ -224,6 +225,7 @@ void *renderThread(void *vargp) {
 
 
 /*
+ * The input counter is the thread that counts the number of characters from the file that we have counted.
  *
  */
 void *inputCounterThread(void *vargp) {
@@ -252,7 +254,8 @@ void *inputCounterThread(void *vargp) {
 }
 
 /*
- *
+ * Encrypt Thread is the thread that calls encrypt module's encrypt function
+ * It deals with two semaphores because this thread touches two data structures (input and output buffers)
  */
 void *encryptThread(void *vargp){
     while(1){
@@ -317,7 +320,7 @@ void *encryptThread(void *vargp){
 
 
 /*
- *
+ * Output Counter thread is the thread that counts the number of characters from the file that we have outputed.
  */
 void *outputCounterThread(void *vargp){
 
