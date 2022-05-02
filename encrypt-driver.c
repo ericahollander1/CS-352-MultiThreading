@@ -249,6 +249,7 @@ void *inputCounterThread(void *vargp) {
         printf("render count: %d, counter: %d\n", render_count, get_input_total_count());
         if (render_count > get_input_total_count()) { //maybe we dont need this if cause we use sems
             count_input(input_buf.buffer[getIndexOfCircBuf(input_buf, render_count - get_input_total_count())]);
+           printf("called encrypt\n");
             sem_post(sem_encrypt1);
         }
 
@@ -282,7 +283,7 @@ void *inputCounterThread(void *vargp) {
 void *encryptThread(void *vargp){
     while(1){
         //printf("encrypt 1: %d, 2: %d\n", render_count-get_input_total_count(), !output_buf.full);
-        if(done[1] == 0) {
+        if(done[1] == 0 || done[2] == 1) {
             sem_wait(sem_encrypt1);
         }
         //if(done[2] == 0) {
@@ -333,13 +334,14 @@ void *encryptThread(void *vargp){
             //sem_post(sem_count_out);
             //done[2] = 1;
             if(encrypt_count >= get_input_total_count()){
-                sem_post(sem_count_out);
+                //sem_post(sem_count_out);
                 done[2] = 1;
-                printf("END OF ENCRYPT\n");
+                printf("END OF ENCRYPT %d\n", done[2]);
                 if(keyChanged == 1){
                     printf("\nWE RESET ENCRYPT HERE!!\n");
 
                     sem_wait(sem_encrypt1);
+                    printf("encrypt done out\n");
                     //done[2] = 0;
                 }
                 else{
@@ -359,7 +361,18 @@ void *encryptThread(void *vargp){
 void *outputCounterThread(void *vargp){
 
     while(1){
+        if(done[2] == 0 || done[3] == 1){
+            printf("ARE WE WAITING????\n");
+            sem_wait(sem_count_out);
+        }
+
+        printf("output %d\n", get_output_total_count());
+        //if(writer_count < get_output_total_count()){ //maybe we dont need this if cause we use sems
+        count_output(output_buf.buffer[getIndexOfCircBuf(output_buf, encrypt_count - get_output_total_count())]);
+        sem_post(sem_writer);
+
         if(done[2] == 1){
+
             printf("sem_writer post here \n");
             sem_post(sem_writer);
             if(get_output_total_count() >= render_count){
@@ -378,14 +391,9 @@ void *outputCounterThread(void *vargp){
             }
 
         }
-        else{
-            sem_wait(sem_count_out);
-        }
+
         //if(done[3] == 0) {
-        printf("output %d\n", get_output_total_count());
-        //if(writer_count < get_output_total_count()){ //maybe we dont need this if cause we use sems
-        count_output(output_buf.buffer[getIndexOfCircBuf(output_buf, encrypt_count - get_output_total_count())]);
-        sem_post(sem_writer);
+
         //sem_post(sem_encrypt2);
          //}
 
@@ -399,7 +407,7 @@ void *outputCounterThread(void *vargp){
 void *writerThread(void *vargp){
     while(1) {
         printf("writer\n");
-        if(done[3] == 0){
+        if(done[3] == 0){ //|| done[4] == 1){
             printf("done3 is true\n");
             sem_wait(sem_writer);
         }
