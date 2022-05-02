@@ -13,6 +13,8 @@
 
 /*
     Authors: Erica Hollander & Lakin Jenkins
+
+    Please see the readme for specific changelog information
 */
 
 
@@ -133,19 +135,6 @@ static void addValue(circular_buf_t buf, char data, sem_t *sem_type){
 
 }
 
-/*
- * dont need?
- */
-//static void moveHead(circular_buf_t buf){
-//    printf("head: %d, tail %d\n", buf.head, buf.tail);
-//    if(buf.head != buf.tail)
-//    {
-//        printf("head: %d, tail %d\n", buf.head, buf.tail);
-//        buf.head = (buf.head + 1) % buf.max;
-//        buf.full = (buf.head == buf.tail+1);
-//    }
-//
-//}
 
 /*
  * get the index of the circular buffer
@@ -164,7 +153,8 @@ int getIndexOfCircBuf(circular_buf_t buf, int behind){
 
 
 /*
- *
+ *Render thread is the thread for reading in the data from the input file
+ * This takes in the character and adds it to the input buffer
  */
 void *renderThread(void *vargp) {
     while (1) {
@@ -182,6 +172,7 @@ void *renderThread(void *vargp) {
                 sem_wait(sem_key);
             }
         }
+
         printf("rendercheck\n");
         if((data = read_input()) == EOF ){
             printf("EOF");
@@ -245,7 +236,7 @@ void *renderThread(void *vargp) {
 
 
 /*
- *
+ *The input counter is the thread that counts the number of characters from the file that we have counted.
  */
 void *inputCounterThread(void *vargp) {
     while (1) {
@@ -266,6 +257,7 @@ void *inputCounterThread(void *vargp) {
             printf("INPUT DONE");
             sem_post(sem_encrypt1);
             if(keyChanged == 1){
+                sem_post(sem_encrypt1);
                 sem_wait(sem_count_in);
                 printf("\n\nWE RESET!!!!\n\n");
             }
@@ -284,7 +276,8 @@ void *inputCounterThread(void *vargp) {
 }
 
 /*
- *
+ * Encrypt Thread is the thread that calls encrypt module's encrypt function
+ * It deals with two semaphores because this thread touches two data structures (input and output buffers)
  */
 void *encryptThread(void *vargp){
     while(1){
@@ -345,6 +338,7 @@ void *encryptThread(void *vargp){
                 printf("END OF ENCRYPT\n");
                 if(keyChanged == 1){
                     printf("\nWE RESET ENCRYPT HERE!!\n");
+
                     sem_wait(sem_encrypt1);
                     //done[2] = 0;
                 }
@@ -360,7 +354,7 @@ void *encryptThread(void *vargp){
 
 
 /*
- *
+ * Output Counter thread is the thread that counts the number of characters from the file that we have outputed.
  */
 void *outputCounterThread(void *vargp){
 
@@ -400,7 +394,7 @@ void *outputCounterThread(void *vargp){
 }
 
 /*
- *
+ * The writer thread is the thread that writes to the output file.
  */
 void *writerThread(void *vargp){
     while(1) {
