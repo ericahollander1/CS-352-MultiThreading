@@ -13,6 +13,8 @@
 
 /*
     Authors: Erica Hollander & Lakin Jenkins
+
+    Please see the readme for specific changelog information
 */
 
 
