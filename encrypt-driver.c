@@ -65,9 +65,8 @@ int keyChanged = 0;
 void reset_requested() {
     // stop the reader thread from reading any more input
     // make sure it is safe to reset
-    keyChanged = 1;
-    printf("HELP ME\n");
-    sem_wait(sem_key_return);
+    keyChanged = 1;//flag var
+    sem_wait(sem_key_return);//semaphore that makes sure all values are caught up
     printf("sem_key_return\n");
     log_counts();
 }
@@ -75,6 +74,7 @@ void reset_requested() {
 
 /*
  * Reset finished resumes all the threads' processes with the new key
+ * and resets variables changed in the reset
  */
 void reset_finished() {
     // resume the reader thread
@@ -155,6 +155,7 @@ int getIndexOfCircBuf(circular_buf_t buf, int behind){
 /*
  *Render thread is the thread for reading in the data from the input file
  * This takes in the character and adds it to the input buffer
+ * In this thread we have to make sure there is room in the following threads to add to.
  */
 void *renderThread(void *vargp) {
     while (1) {
@@ -237,6 +238,8 @@ void *renderThread(void *vargp) {
 
 /*
  *The input counter is the thread that counts the number of characters from the file that we have counted.
+ * This thread must be called by the render method unless the redner method has reached the end of file,
+ * then it should continually run until it catches up to the end
  */
 void *inputCounterThread(void *vargp) {
     while (1) {
@@ -279,6 +282,8 @@ void *inputCounterThread(void *vargp) {
 /*
  * Encrypt Thread is the thread that calls encrypt module's encrypt function
  * It deals with two semaphores because this thread touches two data structures (input and output buffers)
+ * This thread balances calls from both the input and output threads so that the input has values to take
+ * in and the output has free space to store
  */
 void *encryptThread(void *vargp){
     while(1){
@@ -357,6 +362,7 @@ void *encryptThread(void *vargp){
 
 /*
  * Output Counter thread is the thread that counts the number of characters from the file that we have outputed.
+ * the output counter thread waits from the encrypt thread to fill it's array to count the output.
  */
 void *outputCounterThread(void *vargp){
 
@@ -403,6 +409,8 @@ void *outputCounterThread(void *vargp){
 
 /*
  * The writer thread is the thread that writes to the output file.
+ * the writer thread is called by the output counter thread so that only values that have been counted can be "kicked out"
+ * It also then allows for more encryption
  */
 void *writerThread(void *vargp){
     while(1) {
