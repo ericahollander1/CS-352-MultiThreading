@@ -14,7 +14,23 @@
 /*
     Authors: Erica Hollander & Lakin Jenkins
 */
-//buffer = sizeof(char)
+
+
+/*
+ * GLOBAL VARIABLES
+ *
+ * Here are the semaphore that we use for this project. They are globally initialized, so the entire file can access them
+ *
+ * In addition, we initialize render_count, writer_count, and encrypt count globally because we
+ * also use these throughout the file
+ *
+ * For our buffer data structure, we used a circular buffer. This struct is created and we globally declare the
+ * two buffers, input_buf and output_Buf
+ *
+ * The array done is an array of integers acting as booleans to help our semaphores avoid deadlock
+ *
+ * keyChanged is another integer acting as a boolean to help the process of when the key randomly changes
+ */
 
 sem_t *sem_char_render;
 sem_t *sem_count_in;
@@ -36,6 +52,13 @@ circular_buf_t input_buf;
 circular_buf_t output_buf;
 int done[] = {0,0,0,0};
 int keyChanged = 0;
+
+
+/*
+ * Reset requested sets encryption module in a blocked state
+ * When it is safe to reset it unblocks the encryption module
+ * Stops the reader thread from reading anymore input
+ */
 void reset_requested() {
     // stop the reader thread from reading any more input
     // make sure it is safe to reset
@@ -44,11 +67,19 @@ void reset_requested() {
     log_counts();
 }
 
+
+/*
+ * Reset finished resumes all the threads' processes with the new key
+ */
 void reset_finished() {
     // resume the reader thread
     sem_post(sem_key);
 }
 
+/*
+ * gets the size of the circular queue buffer
+ * returns the size of the circular queue buffer
+ */
 size_t getCircBufSize(circular_buf_t buf){
     int size = buf.max;
     if(!buf.full)
@@ -63,8 +94,11 @@ size_t getCircBufSize(circular_buf_t buf){
         }
     }
 return size;
-
 }
+
+/*
+ * adds a value to the circular queue buffer
+ */
 static void addValue(circular_buf_t buf, char data, sem_t *sem_type){
     if(buf.full)
     {
@@ -85,16 +119,25 @@ static void addValue(circular_buf_t buf, char data, sem_t *sem_type){
 
 
 }
-static void moveHead(circular_buf_t buf){
-    printf("head: %d, tail %d\n", buf.head, buf.tail);
-    if(buf.head != buf.tail)
-    {
-        printf("head: %d, tail %d\n", buf.head, buf.tail);
-        buf.head = (buf.head + 1) % buf.max;
-        buf.full = (buf.head == buf.tail+1);
-    }
 
-}
+/*
+ * dont need?
+ */
+//static void moveHead(circular_buf_t buf){
+//    printf("head: %d, tail %d\n", buf.head, buf.tail);
+//    if(buf.head != buf.tail)
+//    {
+//        printf("head: %d, tail %d\n", buf.head, buf.tail);
+//        buf.head = (buf.head + 1) % buf.max;
+//        buf.full = (buf.head == buf.tail+1);
+//    }
+//
+//}
+
+/*
+ * get the index of the circular buffer
+ * returns the index
+ */
 int getIndexOfCircBuf(circular_buf_t buf, int behind){
     int index;
     if(buf.tail-behind < 0){
@@ -106,6 +149,10 @@ int getIndexOfCircBuf(circular_buf_t buf, int behind){
     return index;
 }
 
+
+/*
+ *
+ */
 void *renderThread(void *vargp) {
     while (1) {
     //we might need a while loop in here? its only calling once
@@ -175,6 +222,10 @@ void *renderThread(void *vargp) {
     }
 }
 
+
+/*
+ *
+ */
 void *inputCounterThread(void *vargp) {
     while (1) {
         if(done[0] == 0){
@@ -199,6 +250,10 @@ void *inputCounterThread(void *vargp) {
     }
 
 }
+
+/*
+ *
+ */
 void *encryptThread(void *vargp){
     while(1){
         //printf("encrypt 1: %d, 2: %d\n", render_count-get_input_total_count(), !output_buf.full);
@@ -260,6 +315,10 @@ void *encryptThread(void *vargp){
 
 }
 
+
+/*
+ *
+ */
 void *outputCounterThread(void *vargp){
 
     while(1){
@@ -285,9 +344,11 @@ void *outputCounterThread(void *vargp){
 
 
     }
-
 }
 
+/*
+ *
+ */
 void *writerThread(void *vargp){
     while(1) {
         printf("writer\n");
@@ -319,7 +380,20 @@ void *writerThread(void *vargp){
 
 
 
-
+/*
+ * MAIN
+ * In the main, we take in three file names in this format: [INPUT_FILENAME] [OUTPUT_FILENAME] [LOG_FILENAME]
+ * The program quits if there are not three arguments after ./encrypt in the command line
+ *
+ * Then it initializes the files, and prompts the user for the size of the input and output buffer. Then we allocate
+ * memory for the buffers and initialize everything at 0
+ *
+ * Next, we open our semaphores and unlink them, create our pthreads and join them.
+ * These threads run until the end of file is hit.
+ *
+ * At the end of the main we log the counts to the [LOG_FILENAME]
+ *
+ */
 int main(int argc, char *argv[]) {
     if(argc != 4) {
         printf("Please re-run program with correct input: [INPUT_FILENAME] [OUTPUT_FILENAME] [LOG_FILENAME]");
